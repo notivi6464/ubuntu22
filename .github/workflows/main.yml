@@ -10,7 +10,7 @@ jobs:
     - name: Install SSH and ngrok
       run: |
         sudo apt-get update
-        sudo apt-get install -y ssh unzip
+        sudo apt-get install -y ssh unzip jq
     - name: Download ngrok
       run: wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz -O ngrok.tgz
     - name: Extract ngrok
@@ -19,9 +19,18 @@ jobs:
       run: ./ngrok authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
     - name: Setup SSH User
       run: |
-        sudo useradd -m -s /bin/bash -p $(echo '${{ secrets.SSH_USER_PASSWORD }}' | openssl passwd -1 -stdin) nasuh
+        sudo useradd -m -s /bin/bash -p $(echo '${{ secrets.SSH_USER_PASSWORD }}' | openssl passwd -1 -stdin) USERNAME
         sudo service ssh start
     - name: Create Tunnel
-      run: ./ngrok tcp 22 &
+      run: |
+        ./ngrok tcp 22 &>/dev/null &
+        sleep 10
+    - name: Get Tunnel Info
+      run: |
+        curl -s http://localhost:4040/api/tunnels | jq '.tunnels[] | select(.proto == "tcp") | .public_url'
+    - name: Print IP Address and Port
+      run: |
+        echo "Tunnel Info:"
+        curl -s http://localhost:4040/api/tunnels | jq '.tunnels[] | select(.proto == "tcp")'
       env:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
